@@ -292,6 +292,170 @@ This project demonstrates:
 This setup is ideal for **learning Ingress fundamentals** and **local Kubernetes development**.
 
 ---
+# Enable TLS Termination on the Ingress (NGINX)
 
-Happy Kubernetes Learning
+This guide explains how to enable **TLS termination** on the NGINX Ingress Controller using a **self-signed certificate**.
+
+---
+
+## Prerequisites
+
+* Kubernetes cluster running
+* NGINX Ingress Controller installed
+* `kubectl` configured and connected to the cluster
+* `openssl` installed on your local machine
+
+---
+
+## Step 1: Generate a Self-Signed Certificate
+
+We will generate a self-signed TLS certificate and private key using OpenSSL. This will create two files:
+
+* `tls.crt` (certificate)
+* `tls.key` (private key)
+
+Run the following command on your local machine:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout tls.key \
+  -out tls.crt \
+  -subj "/CN=example.com/O=example.com"
+```
+
+### Explanation
+
+* `-x509` → Generates a self-signed certificate
+* `-nodes` → Prevents encrypting the private key
+* `-days 365` → Certificate validity (1 year)
+* `-newkey rsa:2048` → Creates a new RSA 2048-bit private key
+* `-keyout tls.key` → Output file for the private key
+* `-out tls.crt` → Output file for the certificate
+* `-subj` → Sets certificate subject (Common Name and Organization)
+
+After running the command, you should see:
+
+```text
+tls.crt
+tls.key
+```
+
+---
+
+## Step 2: Create a Kubernetes TLS Secret
+
+Create a Kubernetes Secret of type `tls` to store the certificate and private key:
+
+```bash
+kubectl create secret tls example-tls-secret \
+  --cert=tls.crt \
+  --key=tls.key
+```
+
+### Explanation
+
+* `tls` → Specifies the Secret type
+* `example-tls-secret` → Name of the Secret
+* `--cert` → Path to the certificate file
+* `--key` → Path to the private key file
+
+Verify the secret:
+
+```bash
+kubectl get secret example-tls-secret
+```
+
+---
+
+## Step 3: Update the Ingress Resource to Use TLS
+
+Modify your existing Ingress manifest to include a `tls` section that references the TLS Secret.
+
+### Example: `example-ingress.yaml`
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - www.example.com
+    - api.example.com
+    secretName: example-tls-secret
+  rules:
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
+```
+
+### Explanation
+
+* `tls.hosts` → Domains that will use HTTPS
+* `secretName` → TLS Secret created in Step 2
+* The rest of the Ingress configuration remains unchanged
+
+---
+
+## Step 4: Apply the Updated Ingress Configuration
+
+Apply the updated Ingress manifest:
+
+```bash
+kubectl apply -f example-ingress.yaml
+```
+
+Check the Ingress status:
+
+```bash
+kubectl get ingress example-ingress
+```
+
+---
+
+## (Optional) Force HTTP to HTTPS Redirection
+
+To redirect all HTTP traffic to HTTPS, add the following annotation to your Ingress metadata:
+
+```yaml
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+```
+
+Re-apply the Ingress after updating:
+
+```bash
+kubectl apply -f example-ingress.yaml
+```
+
+---
+
+## Verification
+
+* Access your application using:
+
+  * `https://www.example.com`
+  * `https://api.example.com`
+* You may see a browser warning since the certificate is self-signed (expected behavior)
+
+---
+
+## Notes
+
+* Self-signed certificates are recommended **only for testing or development**
+* For production environments, use a trusted Certificate Authority (CA) such as **Let's Encrypt**
+
+---
+
+✅ TLS termination is now successfully enabled on the NGINX Ingress Controller.
 
