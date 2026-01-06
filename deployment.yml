@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-deployment
+  labels:
+    app: sample-app
+spec:
+  replicas: 3  # Number of desired pod replicas
+  selector:
+    matchLabels:
+      app: sample-app
+  strategy:
+    type: RollingUpdate  # Type of update strategy
+    rollingUpdate:
+      maxSurge: 1  # Number of extra pods to create during update
+      maxUnavailable: 1  # Number of pods that can be unavailable during update
+  minReadySeconds: 10  # Minimum number of seconds for a pod to be ready before considered available
+  revisionHistoryLimit: 5  # Limit on the number of old ReplicaSets to retain
+  progressDeadlineSeconds: 600  # Time to wait for deployment to be completed
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+      - name: sample-container
+        image: nginx  # Container image
+        ports:
+        - containerPort: 80  # Port exposed by the container
+        env:
+        - name: ENVIRONMENT
+          value: "production"  # Sample environment variable
+        resources:  # Resource requests and limits
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+        livenessProbe:  # Liveness probe configuration
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:  # Readiness probe configuration
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:  # Volume mounts (optional)
+        - name: sample-volume
+          mountPath: /usr/share/nginx/html
+      volumes:  # Define volumes used by containers
+      - name: sample-volume
+        emptyDir: {}  # Using an emptyDir volume for demonstration
